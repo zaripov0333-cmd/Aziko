@@ -1,0 +1,126 @@
+import React, { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Send, Menu } from "lucide-react";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, push, onValue } from "firebase/database";
+
+// Firebase config (BU YERGA O'ZINGIZNIKINI QO'YASIZ)
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_DOMAIN",
+  databaseURL: "YOUR_DB_URL",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+export default function GlobeCatalogSite() {
+  const USERS = [
+    { login: "Sardor", password: "aziko" },
+    { login: "Shoxrux", password: "1234" },
+    { login: "Charos", password: "1234" },
+  ];
+
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [currentUser, setCurrentUser] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [showSidebar, setShowSidebar] = useState(false);
+
+  const handleLogin = () => {
+    const found = USERS.find(
+      (u) => u.login === username && u.password === password
+    );
+    if (found) {
+      setCurrentUser(found.login);
+      setLoggedIn(true);
+    } else {
+      alert("Login yoki parol noto'g'ri");
+    }
+  };
+
+  const sendMessage = () => {
+    if (!chatInput) return;
+    push(ref(db, "messages"), {
+      user: currentUser,
+      text: chatInput,
+    });
+    setChatInput("");
+  };
+
+  useEffect(() => {
+    const messagesRef = ref(db, "messages");
+    onValue(messagesRef, (snapshot) => {
+      const data = snapshot.val();
+      const list = data ? Object.values(data) : [];
+      setMessages(list);
+    });
+  }, []);
+
+  if (!loggedIn) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-200 px-4">
+        <Card className="p-6 rounded-2xl shadow-2xl w-full max-w-sm">
+          <CardContent className="space-y-4">
+            <h2 className="text-xl font-bold text-center">Login</h2>
+            <input
+              className="w-full p-2 border rounded"
+              placeholder="Login"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+            <input
+              className="w-full p-2 border rounded"
+              type="password"
+              placeholder="Parol"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Button className="w-full" onClick={handleLogin}>
+              Kirish
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex" style={{ backgroundImage: "url('/photo_2026-02-18_01-42-14.jpg')", backgroundSize: "cover" }}>
+      <div className={`${showSidebar ? "block" : "hidden"} md:block w-64 bg-white/90 backdrop-blur border-r p-4 absolute md:relative z-10 h-full`}>
+        <h2 className="text-lg font-bold mb-4">Chatlar</h2>
+        <div className="p-3 rounded-xl bg-slate-100 cursor-pointer">Umumiy chat</div>
+        <div className="mt-6 text-sm text-gray-500">Foydalanuvchi: <b>{currentUser}</b></div>
+      </div>
+
+      <div className="flex-1 flex flex-col">
+        <div className="p-3 md:hidden">
+          <Button variant="outline" onClick={() => setShowSidebar(!showSidebar)}>
+            <Menu size={18} />
+          </Button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3">
+          {messages.map((m, i) => (
+            <div key={i} className={`max-w-[80%] md:max-w-md p-3 rounded-2xl shadow ${m.user === currentUser ? "ml-auto bg-blue-500 text-white" : "bg-white"}`}>
+              <div className="text-xs opacity-70">{m.user}</div>
+              <div>{m.text}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-3 md:p-4 flex gap-2 bg-white/90 backdrop-blur border-t">
+          <input className="flex-1 border rounded-xl p-3" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Xabar yozing..." />
+          <Button className="rounded-xl px-5" onClick={sendMessage}><Send size={18} /></Button>
+        </div>
+      </div>
+    </div>
+  );
+}
